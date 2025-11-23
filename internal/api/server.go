@@ -117,7 +117,7 @@ func (s *Server) handleSpawn(data json.RawMessage, encoder *json.Encoder) {
 	}
 
 	encoder.Encode(Response{
-		Ok: true,
+		Ok:   true,
 		Data: SpawnResponse{ID: sess.ID},
 	})
 }

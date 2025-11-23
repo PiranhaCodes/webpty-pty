@@ -21,7 +21,7 @@ A production-grade PTY (pseudo-terminal) backend service that provides terminal 
        ▼
 ┌─────────────────────────────────────┐
 │   webpty-pty Server                 │
-│   /run/webpty/pty.sock              │
+│   ~/.webpty/pty.sock                 │
 ├─────────────────────────────────────┤
 │  Session Manager                    │
 │  ├── spawn                          │
@@ -34,9 +34,9 @@ A production-grade PTY (pseudo-terminal) backend service that provides terminal 
        ▼
 ┌─────────────────────────────────────┐
 │   PTY Session                      │
-│   ├── FIFO: /run/webpty/sessions/  │
+│   ├── FIFO: ~/.webpty/sessions/   │
 │   │        <id>.out                 │
-│   └── Log:  /var/log/webpty/       │
+│   └── Log:  ~/.webpty/log/        │
 │            <id>.log                 │
 └─────────────────────────────────────┘
 ```
@@ -115,7 +115,7 @@ The server exposes a JSON-based API over a UNIX domain socket. See [protocol doc
 #### Spawn a Session
 
 ```bash
-echo '{"action":"spawn","data":{}}' | nc -U /run/webpty/pty.sock
+echo '{"action":"spawn","data":{}}' | nc -U ~/.webpty/pty.sock
 # Response: {"ok":true,"data":{"id":"abc-123-def"}}
 ```
 
@@ -148,13 +148,13 @@ echo '{"action":"kill","data":{"id":"abc-123-def"}}' | nc -U /run/webpty/pty.soc
 #### From FIFO (Real-time)
 
 ```bash
-cat /run/webpty/sessions/<session-id>.out
+cat ~/.webpty/sessions/<session-id>.out
 ```
 
 #### From Log File
 
 ```bash
-tail -f /var/log/webpty/<session-id>.log
+tail -f ~/.webpty/log/<session-id>.log
 ```
 
 ### Test Client
@@ -198,9 +198,9 @@ webpty-pty/
 
 ## File Locations
 
-- **Socket**: `/run/webpty/pty.sock`
-- **FIFO Pipes**: `/run/webpty/sessions/<id>.out`
-- **Log Files**: `/var/log/webpty/<id>.log`
+- **Socket**: `~/.webpty/pty.sock`
+- **FIFO Pipes**: `~/.webpty/sessions/<id>.out`
+- **Log Files**: `~/.webpty/log/<id>.log`
 - **Config File**: `/etc/webpty/config.yml` (optional, defaults used if missing)
 
 ## Protocol

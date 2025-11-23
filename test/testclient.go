@@ -8,11 +8,34 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 )
 
-const socketPath = "/run/webpty/pty.sock"
+const socketPath = "~/.webpty/pty.sock"
+
+// expandPath expands the tilde (~) character to the user's home directory.
+func expandPath(path string) (string, error) {
+	if len(path) == 0 {
+		return path, nil
+	}
+
+	if path[0] == '~' {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("failed to get home directory: %w", err)
+		}
+		if len(path) == 1 {
+			return homeDir, nil
+		}
+		if path[1] == '/' || path[1] == '\\' {
+			return filepath.Join(homeDir, path[2:]), nil
+		}
+	}
+
+	return path, nil
+}
 
 type Request struct {
 	Action string          `json:"action"`
@@ -20,9 +43,9 @@ type Request struct {
 }
 
 type Response struct {
-	Ok    bool        `json:"ok"`
-	Err   string      `json:"err,omitempty"`
-	Data  interface{} `json:"data,omitempty"`
+	Ok   bool        `json:"ok"`
+	Err  string      `json:"err,omitempty"`
+	Data interface{} `json:"data,omitempty"`
 }
 
 type SpawnResponse struct {
@@ -47,8 +70,14 @@ type SessionInfo struct {
 func main() {
 	log.Println("[TestClient] Starting test client...")
 
+	// Expand socket path
+	expandedSocketPath, err := expandPath(socketPath)
+	if err != nil {
+		log.Fatalf("[TestClient] Failed to expand socket path: %v", err)
+	}
+
 	// Connect to server
-	conn, err := net.Dial("unix", socketPath)
+	conn, err := net.Dial("unix", expandedSocketPath)
 	if err != nil {
 		log.Fatalf("[TestClient] Failed to connect: %v", err)
 	}
@@ -64,8 +93,12 @@ func main() {
 
 	log.Printf("[TestClient] Spawned session: %s", sessionID)
 
-	// Open FIFO for reading
-	fifoPath := fmt.Sprintf("/run/webpty/sessions/%s.out", sessionID)
+	// Open FIFO for reading (derive from socket path)
+	sessionsDir := filepath.Join(filepath.Dir(expandedSocketPath), "sessions")
+	fifoPath := filepath.Join(sessionsDir, fmt.Sprintf("%s.out", sessionID))
+	
+	// Wait a bit for FIFO to be created
+	time.Sleep(200 * time.Millisecond)
 	fifo, err := os.OpenFile(fifoPath, os.O_RDONLY|syscall.O_NONBLOCK, 0)
 	if err != nil {
 		log.Fatalf("[TestClient] Failed to open FIFO: %v", err)
@@ -278,4 +311,3 @@ func killSession(conn net.Conn, sessionID string) error {
 
 	return nil
 }
-

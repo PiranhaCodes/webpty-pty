@@ -10,9 +10,9 @@ type Request struct {
 
 // Response represents a response to a request.
 type Response struct {
-	Ok    bool        `json:"ok"`
-	Err   string      `json:"err,omitempty"`
-	Data  interface{} `json:"data,omitempty"`
+	Ok   bool        `json:"ok"`
+	Err  string      `json:"err,omitempty"`
+	Data interface{} `json:"data,omitempty"`
 }
 
 // SpawnRequest is the data for a spawn action.
@@ -31,9 +31,9 @@ type WriteRequest struct {
 
 // ResizeRequest is the data for a resize action.
 type ResizeRequest struct {
-	ID    string `json:"id"`
-	Cols  int    `json:"cols"`
-	Rows  int    `json:"rows"`
+	ID   string `json:"id"`
+	Cols int    `json:"cols"`
+	Rows int    `json:"rows"`
 }
 
 // KillRequest is the data for a kill action.

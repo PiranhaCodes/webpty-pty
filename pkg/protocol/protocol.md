@@ -2,7 +2,7 @@
 
 ## Overview
 
-The WebPTY backend service communicates over a UNIX domain socket using JSON messages. The socket is located at `/run/webpty/pty.sock`.
+The WebPTY backend service communicates over a UNIX domain socket using JSON messages. The socket is located at `~/.webpty/pty.sock` (expanded to the user's home directory).
 
 ## Message Format
 
@@ -80,8 +80,8 @@ If none are found, an error is returned.
 
 **Output Streams:**
 
-- FIFO pipe: `/run/webpty/sessions/<id>.out`
-- Log file: `/var/log/webpty/<id>.log`
+- FIFO pipe: `~/.webpty/sessions/<id>.out`
+- Log file: `~/.webpty/log/<id>.log`
 
 ### write
 
@@ -253,8 +253,8 @@ Common error messages:
 
    - Server detects shell
    - Creates PTY
-   - Creates FIFO pipe at `/run/webpty/sessions/<id>.out`
-   - Opens log file at `/var/log/webpty/<id>.log`
+   - Creates FIFO pipe at `~/.webpty/sessions/<id>.out`
+   - Opens log file at `~/.webpty/log/<id>.log`
    - Starts read loop in background
    - Returns session ID
 
@@ -277,10 +277,10 @@ Common error messages:
 
 ## File Locations
 
-- **Socket**: `/run/webpty/pty.sock`
-- **FIFO Pipes**: `/run/webpty/sessions/<id>.out`
-- **Log Files**: `/var/log/webpty/<id>.log`
-- **Config File**: `/etc/webpty/config.yml` (optional, defaults used if missing)
+- **Socket**: `~/.webpty/pty.sock` (expanded to user's home directory)
+- **FIFO Pipes**: `~/.webpty/sessions/<id>.out`
+- **Log Files**: `~/.webpty/log/<id>.log`
+- **Config File**: `~/.webpty/config.yml` (optional, defaults used if missing)
 
 ## Concurrency
 
@@ -293,26 +293,26 @@ Common error messages:
 
 ```bash
 # 1. Spawn session
-echo '{"action":"spawn","data":{}}' | nc -U /run/webpty/pty.sock
+echo '{"action":"spawn","data":{}}' | nc -U ~/.webpty/pty.sock
 # Response: {"ok":true,"data":{"id":"abc-123-def"}}
 
 # 2. Write command
-echo '{"action":"write","data":{"id":"abc-123-def","data":"echo hello\n"}}' | nc -U /run/webpty/pty.sock
+echo '{"action":"write","data":{"id":"abc-123-def","data":"echo hello\n"}}' | nc -U ~/.webpty/pty.sock
 # Response: {"ok":true}
 
 # 3. Read output from FIFO
-cat /run/webpty/sessions/abc-123-def.out
+cat ~/.webpty/sessions/abc-123-def.out
 # Output: hello
 
 # 4. Resize terminal
-echo '{"action":"resize","data":{"id":"abc-123-def","cols":120,"rows":40}}' | nc -U /run/webpty/pty.sock
+echo '{"action":"resize","data":{"id":"abc-123-def","cols":120,"rows":40}}' | nc -U ~/.webpty/pty.sock
 # Response: {"ok":true}
 
 # 5. List sessions
-echo '{"action":"list","data":{}}' | nc -U /run/webpty/pty.sock
+echo '{"action":"list","data":{}}' | nc -U ~/.webpty/pty.sock
 # Response: {"ok":true,"data":{"sessions":[{"id":"abc-123-def","status":"active"}],"count":1}}
 
 # 6. Kill session
-echo '{"action":"kill","data":{"id":"abc-123-def"}}' | nc -U /run/webpty/pty.sock
+echo '{"action":"kill","data":{"id":"abc-123-def"}}' | nc -U ~/.webpty/pty.sock
 # Response: {"ok":true}
 ```

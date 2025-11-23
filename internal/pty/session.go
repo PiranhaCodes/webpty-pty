@@ -6,20 +6,21 @@ import (
 	"os"
 	"os/exec"
 	"sync"
+	"syscall"
 
 	ptylib "github.com/creack/pty"
 )
 
 // Session represents an active PTY session with its associated resources.
 type Session struct {
-	ID        string
-	Cmd       *exec.Cmd
-	Pty       *os.File
-	logFile   *os.File
-	fifoPath  string
+	ID         string
+	Cmd        *exec.Cmd
+	Pty        *os.File
+	logFile    *os.File
+	fifoPath   string
 	fifoWriter *os.File
-	mu        sync.Mutex
-	done      chan struct{}
+	mu         sync.Mutex
+	done       chan struct{}
 }
 
 // Write sends data to the PTY stdin.
@@ -64,6 +65,19 @@ func (s *Session) ReadLoop() {
 			go func(d []byte) {
 				if _, err := s.fifoWriter.Write(d); err != nil {
 					log.Printf("[PTY] Session %s: FIFO write error (non-fatal): %v", s.ID, err)
+				}
+			}(data)
+		} else if s.fifoPath != "" {
+			// Try to open FIFO if it wasn't opened initially (macOS case)
+			go func(d []byte) {
+				writer, err := os.OpenFile(s.fifoPath, os.O_WRONLY|syscall.O_NONBLOCK, 0)
+				if err == nil {
+					s.mu.Lock()
+					s.fifoWriter = writer
+					s.mu.Unlock()
+					if _, err := writer.Write(d); err != nil {
+						log.Printf("[PTY] Session %s: FIFO write error (non-fatal): %v", s.ID, err)
+					}
 				}
 			}(data)
 		}

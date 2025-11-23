@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -12,33 +13,75 @@ import (
 	"github.com/PiranhaCodes/webpty-pty/internal/pty"
 )
 
+// expandPath expands the tilde (~) character to the user's home directory.
+func expandPath(path string) (string, error) {
+	if len(path) == 0 {
+		return path, nil
+	}
+
+	if path[0] == '~' {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("failed to get home directory: %w", err)
+		}
+		if len(path) == 1 {
+			return homeDir, nil
+		}
+		if path[1] == '/' || path[1] == '\\' {
+			return filepath.Join(homeDir, path[2:]), nil
+		}
+	}
+
+	return path, nil
+}
+
 func main() {
-	cfgpath := flag.String("config", "/etc/webpty/config.yml", "Path to configuration file")
-	socketPath := flag.String("socket", "/run/webpty/pty.sock", "Path to Unix socket")
+	cfgpath := flag.String("config", "~/.webpty/config.yml", "Path to configuration file")
+	socketPathRaw := flag.String("socket", "~/.webpty/pty.sock", "Path to Unix socket")
 	flag.Parse()
 
-	log.Printf("[PTY] Starting server with config: %s and socket: %s", *cfgpath, *socketPath)
+	// Expand paths
+	socketPath, err := expandPath(*socketPathRaw)
+	if err != nil {
+		log.Fatalf("[PTY] Failed to expand socket path: %v", err)
+	}
 
-	socketDir := filepath.Dir(*socketPath)
+	cfgPathExpanded, err := expandPath(*cfgpath)
+	if err != nil {
+		log.Fatalf("[PTY] Failed to expand config path: %v", err)
+	}
+
+	log.Printf("[PTY] Starting server with config: %s and socket: %s", cfgPathExpanded, socketPath)
+
+	socketDir := filepath.Dir(socketPath)
 	if err := os.MkdirAll(socketDir, 0755); err != nil {
 		log.Fatalf("[PTY] Failed to create socket directory: %v", err)
 	}
 
-	if err := os.MkdirAll("/run/webpty/sessions", 0755); err != nil {
+	// Expand session and log directories
+	sessionsDir, err := expandPath("~/.webpty/sessions")
+	if err != nil {
+		log.Fatalf("[PTY] Failed to expand sessions directory: %v", err)
+	}
+	if err := os.MkdirAll(sessionsDir, 0755); err != nil {
 		log.Fatalf("[PTY] Failed to create sessions directory: %v", err)
 	}
 
-	if err := os.MkdirAll("/var/log/webpty", 0755); err != nil {
+	logDir, err := expandPath("~/.webpty/log")
+	if err != nil {
+		log.Fatalf("[PTY] Failed to expand log directory: %v", err)
+	}
+	if err := os.MkdirAll(logDir, 0755); err != nil {
 		log.Fatalf("[PTY] Failed to create log directory: %v", err)
 	}
 
-	if _, err := os.Stat(*cfgpath); err == nil {
-		log.Printf("[PTY] Config file found at %s (using defaults for now)", *cfgpath)
+	if _, err := os.Stat(cfgPathExpanded); err == nil {
+		log.Printf("[PTY] Config file found at %s (using defaults for now)", cfgPathExpanded)
 	} else {
-		log.Printf("[PTY] Config file not found at %s, using defaults", *cfgpath)
+		log.Printf("[PTY] Config file not found at %s, using defaults", cfgPathExpanded)
 	}
 
-	server := api.NewServer(*socketPath)
+	server := api.NewServer(socketPath)
 
 	go func() {
 		if err := server.Start(); err != nil {
